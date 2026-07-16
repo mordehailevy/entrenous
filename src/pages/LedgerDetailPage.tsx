@@ -1,0 +1,263 @@
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import { supabase } from '../lib/supabaseClient';
+import { useAuth } from '../context/useAuth';
+import type { Direction, Ledger, Transaction, TransactionKind } from '../types';
+import { computeBalanceHistory, computeOwnerBalance } from '../utils/balance';
+import { Header } from '../components/Header';
+import { Card } from '../components/Card';
+import { Button } from '../components/Button';
+import { BalanceDisplay } from '../components/BalanceDisplay';
+import { ShareLinkButton } from '../components/ShareLinkButton';
+import { TransactionForm } from '../components/TransactionForm';
+import { TransactionList } from '../components/TransactionList';
+import { BalanceChart } from '../components/BalanceChart';
+import { EditableLedgerName } from '../components/EditableLedgerName';
+
+export function LedgerDetailPage() {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const { profile } = useAuth();
+  const [ledger, setLedger] = useState<Ledger | null>(null);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [showForm, setShowForm] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const formRef = useRef<HTMLDivElement>(null);
+  const historyRef = useRef<HTMLDivElement>(null);
+
+  const load = useCallback(async () => {
+    if (!id) return;
+    setLoading(true);
+    const [{ data: ledgerData, error: ledgerError }, { data: txData }] = await Promise.all([
+      supabase.from('ledgers').select('*').eq('id', id).single(),
+      supabase.from('transactions').select('*').eq('ledger_id', id),
+    ]);
+    if (ledgerError) {
+      setError('Compte introuvable.');
+      setLoading(false);
+      return;
+    }
+    setLedger(ledgerData as Ledger);
+    setTransactions((txData as Transaction[]) ?? []);
+    setLoading(false);
+  }, [id]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  async function handleAddTransaction(values: {
+    amount: number;
+    direction: 'owner_to_counterparty' | 'counterparty_to_owner';
+    kind: TransactionKind;
+    note: string;
+  }) {
+    if (!ledger) return;
+    const { error } = await supabase.from('transactions').insert({
+      ledger_id: ledger.id,
+      amount: values.amount,
+      direction: values.direction,
+      kind: values.kind,
+      note: values.note || null,
+      created_by: 'owner',
+      status: ledger.is_private ? 'confirmed' : 'pending',
+      confirmed_at: ledger.is_private ? new Date().toISOString() : null,
+    });
+    if (error) throw new Error(error.message);
+    setShowForm(false);
+    await load();
+  }
+
+  async function handleConfirm(tx: Transaction) {
+    setActionError(null);
+    const { error } = await supabase
+      .from('transactions')
+      .update({ status: 'confirmed', confirmed_at: new Date().toISOString() })
+      .eq('id', tx.id);
+    if (error) {
+      setActionError(error.message);
+      return;
+    }
+    await load();
+  }
+
+  async function handleDispute(tx: Transaction, comment: string) {
+    setActionError(null);
+    const { error } = await supabase
+      .from('transactions')
+      .update({ status: 'disputed', dispute_comment: comment })
+      .eq('id', tx.id);
+    if (error) {
+      setActionError(error.message);
+      return;
+    }
+    await load();
+  }
+
+  async function handleEditTransaction(
+    tx: Transaction,
+    values: { amount: number; direction: Direction; kind: TransactionKind; note: string },
+  ) {
+    const { error } = await supabase
+      .from('transactions')
+      .update({
+        amount: values.amount,
+        direction: values.direction,
+        kind: values.kind,
+        note: values.note || null,
+      })
+      .eq('id', tx.id);
+    if (error) throw new Error(error.message);
+    await load();
+  }
+
+  async function handleRegenerateShareToken() {
+    if (!ledger) return;
+    const newToken = crypto.randomUUID().replace(/-/g, '') + crypto.randomUUID().replace(/-/g, '');
+    const { error } = await supabase.from('ledgers').update({ share_token: newToken }).eq('id', ledger.id);
+    if (error) throw new Error(error.message);
+    await load();
+  }
+
+  async function handleRenameLedger(newName: string) {
+    if (!ledger) return;
+    const { error } = await supabase
+      .from('ledgers')
+      .update({ counterparty_name: newName })
+      .eq('id', ledger.id);
+    if (error) throw new Error(error.message);
+    await load();
+  }
+
+  async function handleDeleteTransaction(tx: Transaction) {
+    const { error } = await supabase.from('transactions').delete().eq('id', tx.id);
+    if (error) throw new Error(error.message);
+    await load();
+  }
+
+  async function handleDeleteLedger() {
+    if (!ledger) return;
+    const label = ledger.is_private ? 'cette note privée' : `le compte "${ledger.counterparty_name}"`;
+    if (!window.confirm(`Supprimer définitivement ${label} et toutes ses transactions ?`)) return;
+    const { error } = await supabase.from('ledgers').delete().eq('id', ledger.id);
+    if (error) {
+      setError(error.message);
+      return;
+    }
+    navigate('/');
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-svh">
+        <Header />
+        <p className="py-12 text-center text-sm text-gray-400">Chargement...</p>
+      </div>
+    );
+  }
+
+  if (error || !ledger) {
+    return (
+      <div className="min-h-svh">
+        <Header />
+        <p className="py-12 text-center text-sm text-debt">{error ?? 'Compte introuvable.'}</p>
+      </div>
+    );
+  }
+
+  const { confirmedBalance, pendingBalance } = computeOwnerBalance(transactions);
+  const history = computeBalanceHistory(transactions);
+  const ownerLabel = profile?.display_name ?? 'Vous';
+
+  return (
+    <div className="min-h-svh">
+      <Header />
+      <main className="mx-auto max-w-3xl px-4 py-6">
+        <Link to="/" className="mb-4 inline-block text-sm text-gray-500 hover:text-ink">
+          ← Retour au tableau de bord
+        </Link>
+
+        <Card className="mb-4">
+          <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+            <EditableLedgerName name={ledger.counterparty_name} onSave={handleRenameLedger} />
+            <div className="flex flex-wrap items-center gap-2">
+              {!ledger.is_private && (
+                <ShareLinkButton shareToken={ledger.share_token} onRegenerate={handleRegenerateShareToken} />
+              )}
+              <button
+                type="button"
+                onClick={handleDeleteLedger}
+                className="text-xs font-medium text-gray-500 hover:text-debt"
+              >
+                Supprimer
+              </button>
+            </div>
+          </div>
+          <BalanceDisplay
+            confirmedBalance={confirmedBalance}
+            pendingBalance={pendingBalance}
+            currency={ledger.currency}
+            theyOweYouLabel={ledger.is_private ? 'On vous doit' : `${ledger.counterparty_name} vous doit`}
+            youOweThemLabel={ledger.is_private ? 'Vous devez' : `Vous devez à ${ledger.counterparty_name}`}
+          />
+        </Card>
+
+        {!ledger.is_private && (
+          <Card className="mb-4">
+            <h2 className="mb-3 text-sm font-semibold text-ink">Évolution du solde</h2>
+            <BalanceChart data={history} currency={ledger.currency} />
+          </Card>
+        )}
+
+        <Card className="mb-4" ref={formRef}>
+          {showForm ? (
+            <TransactionForm
+              currency={ledger.currency}
+              actor="owner"
+              ownerLabel={ownerLabel}
+              counterpartyLabel={ledger.counterparty_name}
+              isPrivate={ledger.is_private}
+              onSubmit={async (values) => {
+                await handleAddTransaction(values);
+                historyRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }}
+              onCancel={() => setShowForm(false)}
+            />
+          ) : (
+            <Button
+              className="w-full"
+              onClick={() => {
+                setShowForm(true);
+                requestAnimationFrame(() =>
+                  formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }),
+                );
+              }}
+            >
+              + Ajouter une transaction
+            </Button>
+          )}
+        </Card>
+
+        <Card ref={historyRef}>
+          <h2 className="mb-2 text-sm font-semibold text-ink">Historique</h2>
+          {actionError && <p className="mb-3 text-sm text-debt">{actionError}</p>}
+          <TransactionList
+            transactions={transactions}
+            currency={ledger.currency}
+            viewer="owner"
+            ownerLabel={ownerLabel}
+            counterpartyLabel={ledger.counterparty_name}
+            isPrivate={ledger.is_private}
+            onConfirm={handleConfirm}
+            onDispute={handleDispute}
+            readOnly={ledger.is_private}
+            onEdit={handleEditTransaction}
+            onDelete={handleDeleteTransaction}
+          />
+        </Card>
+      </main>
+    </div>
+  );
+}

@@ -1,0 +1,43 @@
+@import 'tailwindcss';
+
+@theme {
+  --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+
+  --color-ivory: #faf8f5;
+  --color-ink: #1c1a22;
+  --color-accent-start: #7c3aed;
+  --color-accent-end: #2563eb;
+  --color-credit: #16a34a;
+  --color-credit-bg: #f0fdf4;
+  --color-debt: #dc2626;
+  --color-debt-bg: #fef2f2;
+  --color-pending: #d97706;
+  --color-pending-bg: #fffbeb;
+}
+
+html {
+  color-scheme: light;
+}
+
+body {
+  margin: 0;
+  background: var(--color-ivory);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  min-height: 100svh;
+}
+
+.gradient-accent {
+  background-image: linear-gradient(135deg, var(--color-accent-start), var(--color-accent-end));
+}
+
+.gradient-text {
+  background-image: linear-gradient(135deg, var(--color-accent-start), var(--color-accent-end));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
