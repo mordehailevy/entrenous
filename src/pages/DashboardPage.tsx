@@ -8,6 +8,7 @@ import { formatAmount } from '../utils/format';
 import { Header } from '../components/Header';
 import { Card } from '../components/Card';
 import { Button } from '../components/Button';
+import { Input } from '../components/Input';
 import { NewLedgerModal } from '../components/NewLedgerModal';
 
 interface LedgerWithBalance extends Ledger {
@@ -24,6 +25,7 @@ export function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
 
   const loadLedgers = useCallback(async () => {
     setLoading(true);
@@ -93,8 +95,16 @@ export function DashboardPage() {
     await loadLedgers();
   }
 
-  const sharedLedgers = ledgers?.filter((l) => !l.is_private) ?? [];
-  const privateLedgers = ledgers?.filter((l) => l.is_private) ?? [];
+  const allLedgers = ledgers ?? [];
+  const sharedLedgers = allLedgers.filter((l) => !l.is_private);
+  const privateLedgers = allLedgers.filter((l) => l.is_private);
+
+  // Recherche par nom (personne ou catégorie), insensible à la casse/aux accents.
+  const normalizedSearch = search.trim().toLocaleLowerCase();
+  const matchesSearch = (ledger: LedgerWithBalance) =>
+    ledgerLabel(ledger).toLocaleLowerCase().includes(normalizedSearch);
+  const filteredSharedLedgers = normalizedSearch ? sharedLedgers.filter(matchesSearch) : sharedLedgers;
+  const filteredPrivateLedgers = normalizedSearch ? privateLedgers.filter(matchesSearch) : privateLedgers;
 
   // Les soldes sont totalisés par devise plutôt que sommés en un seul nombre,
   // car additionner des ILS et des EUR bruts n'a pas de sens arithmétique.
@@ -143,13 +153,24 @@ export function DashboardPage() {
           <Button onClick={() => setShowModal(true)}>+ Nouveau compte</Button>
         </div>
 
+        {allLedgers.length > 1 && (
+          <div className="mb-4">
+            <Input
+              type="search"
+              placeholder="🔍 Rechercher une personne..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+        )}
+
         {error && <p className="mb-4 text-sm text-debt">{error}</p>}
 
         {loading ? (
           <p className="py-12 text-center text-sm text-gray-400">Chargement...</p>
         ) : (
           <div className="space-y-3">
-            {sharedLedgers.map((ledger) => (
+            {filteredSharedLedgers.map((ledger) => (
               <LedgerRow key={ledger.id} ledger={ledger} />
             ))}
             {sharedLedgers.length === 0 && (
@@ -157,14 +178,17 @@ export function DashboardPage() {
                 Aucun compte partagé pour l'instant. Créez-en un pour commencer.
               </p>
             )}
+            {sharedLedgers.length > 0 && filteredSharedLedgers.length === 0 && (
+              <p className="py-6 text-center text-sm text-gray-400">Aucun compte ne correspond à cette recherche.</p>
+            )}
           </div>
         )}
 
-        {privateLedgers.length > 0 && (
+        {privateLedgers.length > 0 && filteredPrivateLedgers.length > 0 && (
           <div className="mt-8">
             <h2 className="mb-4 text-lg font-bold text-ink">Mes notes privées</h2>
             <div className="space-y-3">
-              {privateLedgers.map((ledger) => (
+              {filteredPrivateLedgers.map((ledger) => (
                 <LedgerRow key={ledger.id} ledger={ledger} />
               ))}
             </div>
@@ -177,9 +201,13 @@ export function DashboardPage() {
   );
 }
 
+function ledgerLabel(ledger: LedgerWithBalance): string {
+  return ledger.viewerIsCounterparty ? ledger.owner_display_name : ledger.counterparty_name;
+}
+
 function LedgerRow({ ledger }: { ledger: LedgerWithBalance }) {
   const isCredit = ledger.confirmedBalance >= 0;
-  const label = ledger.viewerIsCounterparty ? ledger.owner_display_name : ledger.counterparty_name;
+  const label = ledgerLabel(ledger);
   return (
     <Link to={`/comptes/${ledger.id}`} className="block">
       <Card className="flex items-center justify-between transition-shadow hover:shadow-md">

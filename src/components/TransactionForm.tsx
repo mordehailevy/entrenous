@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import type { CreatedBy, Currency, Direction, TransactionKind } from '../types';
 import { Button } from './Button';
 import { Input, Label, Select, Textarea } from './Input';
@@ -51,6 +51,13 @@ export function TransactionForm({
   const [note, setNote] = useState(initialValues?.note ?? '');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const amountRef = useRef<HTMLInputElement>(null);
+
+  // Ouvrir le formulaire (ajout ou édition) place directement le curseur dans
+  // le champ Montant, pour ne pas avoir à cliquer dessus soi-même.
+  useEffect(() => {
+    amountRef.current?.focus();
+  }, []);
 
   // Note privée : le "nom" du compte peut être une catégorie ("Dettes diverses") plutôt qu'une
   // personne, donc "J'ai envoyé à Dettes diverses" serait bancal — on omet le destinataire.
@@ -107,6 +114,7 @@ export function TransactionForm({
         <Label htmlFor="amount">Montant</Label>
         <Input
           id="amount"
+          ref={amountRef}
           inputMode="decimal"
           placeholder={`0 ${currency === 'ILS' ? '₪' : '€'}`}
           value={amount}
