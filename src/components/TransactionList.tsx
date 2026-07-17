@@ -2,10 +2,11 @@ import { useState } from 'react';
 import type { CreatedBy, Currency, Direction, Transaction, TransactionKind, TransactionStatus } from '../types';
 import { StatusBadge } from './StatusBadge';
 import { Button } from './Button';
-import { Select, Textarea } from './Input';
+import { Input, Select, Textarea } from './Input';
 import { TransactionForm } from './TransactionForm';
 import { formatAmount, formatDateTime, KIND_LABELS } from '../utils/format';
 import { getProofUrl, validateProofFile } from '../utils/proof';
+import { normalizeForSearch } from '../utils/search';
 
 interface TransactionListProps {
   transactions: Transaction[];
@@ -53,15 +54,27 @@ export function TransactionList({
   const [proofError, setProofError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<'all' | TransactionStatus>('all');
   const [kindFilter, setKindFilter] = useState<'all' | TransactionKind>('all');
+  const [noteSearch, setNoteSearch] = useState('');
+  const [sortOrder, setSortOrder] = useState<'date_desc' | 'date_asc' | 'amount_desc' | 'amount_asc'>('date_desc');
 
   if (transactions.length === 0) {
     return <p className="py-8 text-center text-sm text-gray-400">Aucune transaction pour l'instant.</p>;
   }
 
+  const SORT_COMPARATORS: Record<typeof sortOrder, (a: Transaction, b: Transaction) => number> = {
+    date_desc: (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+    date_asc: (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+    amount_desc: (a, b) => b.amount - a.amount,
+    amount_asc: (a, b) => a.amount - b.amount,
+  };
+
+  // Recherche insensible à la casse/aux accents sur la note de la transaction.
+  const normalizedNoteSearch = normalizeForSearch(noteSearch);
   const sorted = [...transactions]
     .filter((tx) => statusFilter === 'all' || tx.status === statusFilter)
     .filter((tx) => kindFilter === 'all' || tx.kind === kindFilter)
-    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    .filter((tx) => !normalizedNoteSearch || normalizeForSearch(tx.note ?? '').includes(normalizedNoteSearch))
+    .sort(SORT_COMPARATORS[sortOrder]);
 
   async function handleConfirm(tx: Transaction) {
     setBusyId(tx.id);
@@ -123,25 +136,39 @@ export function TransactionList({
   return (
     <div>
       {transactions.length > 1 && (
-        <div className="mb-3 flex gap-2">
-          <div className="flex-1">
-            <Select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}>
-              <option value="all">Tous les statuts</option>
-              <option value="pending">En attente</option>
-              <option value="confirmed">Confirmées</option>
-              <option value="disputed">Contestées</option>
-            </Select>
+        <div className="mb-3 space-y-2">
+          <Input
+            type="search"
+            placeholder="🔍 Rechercher dans les notes..."
+            value={noteSearch}
+            onChange={(e) => setNoteSearch(e.target.value)}
+          />
+          <div className="flex gap-2">
+            <div className="flex-1">
+              <Select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}>
+                <option value="all">Tous les statuts</option>
+                <option value="pending">En attente</option>
+                <option value="confirmed">Confirmées</option>
+                <option value="disputed">Contestées</option>
+              </Select>
+            </div>
+            <div className="flex-1">
+              <Select value={kindFilter} onChange={(e) => setKindFilter(e.target.value as typeof kindFilter)}>
+                <option value="all">Tous les types</option>
+                {Object.entries(KIND_LABELS).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </Select>
+            </div>
           </div>
-          <div className="flex-1">
-            <Select value={kindFilter} onChange={(e) => setKindFilter(e.target.value as typeof kindFilter)}>
-              <option value="all">Tous les types</option>
-              {Object.entries(KIND_LABELS).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </Select>
-          </div>
+          <Select value={sortOrder} onChange={(e) => setSortOrder(e.target.value as typeof sortOrder)}>
+            <option value="date_desc">Plus récent</option>
+            <option value="date_asc">Plus ancien</option>
+            <option value="amount_desc">Montant décroissant</option>
+            <option value="amount_asc">Montant croissant</option>
+          </Select>
         </div>
       )}
 

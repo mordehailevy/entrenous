@@ -5,6 +5,7 @@ import { useAuth } from '../context/useAuth';
 import type { Direction, Ledger, Transaction, TransactionKind } from '../types';
 import { computeBalanceHistory, computeGuestBalance, computeOwnerBalance } from '../utils/balance';
 import { removeProofFile, uploadProof, validateProofFile } from '../utils/proof';
+import { exportTransactionsToCsv } from '../utils/csvExport';
 import { Header } from '../components/Header';
 import { Card } from '../components/Card';
 import { Button } from '../components/Button';
@@ -185,6 +186,17 @@ export function LedgerDetailPage() {
     await load();
   }
 
+  function handleExportCsv() {
+    if (!ledger) return;
+    const label = ledger.is_private ? 'notes' : ledger.counterparty_name;
+    exportTransactionsToCsv(transactions, {
+      fileName: `entrenous-${label}.csv`,
+      currency: ledger.currency,
+      ownerLabel: ledger.owner_display_name || profile?.display_name || 'Vous',
+      counterpartyLabel: ledger.counterparty_name,
+    });
+  }
+
   async function handleDeleteLedger() {
     if (!ledger) return;
     const label = ledger.is_private ? 'cette note privée' : `le compte "${ledger.counterparty_name}"`;
@@ -320,7 +332,18 @@ export function LedgerDetailPage() {
         </Card>
 
         <Card ref={historyRef}>
-          <h2 className="mb-2 text-sm font-semibold text-ink">Historique</h2>
+          <div className="mb-2 flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-ink">Historique</h2>
+            {transactions.length > 0 && (
+              <button
+                type="button"
+                onClick={handleExportCsv}
+                className="-m-2 p-2 text-xs font-medium text-gray-500 hover:text-ink"
+              >
+                ⬇️ Exporter en CSV
+              </button>
+            )}
+          </div>
           {actionMessage && <p className="mb-3 text-sm text-credit">{actionMessage}</p>}
           {actionError && <p className="mb-3 text-sm text-debt">{actionError}</p>}
           <TransactionList

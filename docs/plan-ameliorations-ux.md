@@ -50,13 +50,13 @@ Statut global : **EN COURS**
       migrations précédentes).
 
 ## 7. Recherche dans les notes des transactions
-- [ ] `src/components/TransactionList.tsx` : ajouter un champ de recherche
+- [x] `src/components/TransactionList.tsx` : ajouter un champ de recherche
       texte (visible dès que `transactions.length > 1`, comme les filtres
       existants) qui filtre sur `tx.note` (insensible à la casse/accents,
       même normalisation que le point 3).
 
 ## 8. Export CSV / PDF de l'historique d'un compte
-- [ ] Choisir le format prioritaire (CSV d'abord, plus simple, pas de
+- [x] Choisir le format prioritaire (CSV d'abord, plus simple, pas de
       dépendance lourde) : bouton "Exporter en CSV" sur
       `src/pages/LedgerDetailPage.tsx` (et éventuellement
       `GuestLedgerPage.tsx`), générant un fichier côté client (colonnes :
@@ -67,7 +67,7 @@ Statut global : **EN COURS**
       828 kB).
 
 ## 9. Tri des transactions (au-delà de la date)
-- [ ] `src/components/TransactionList.tsx` : ajouter un sélecteur de tri
+- [x] `src/components/TransactionList.tsx` : ajouter un sélecteur de tri
       ("Plus récent", "Plus ancien", "Montant décroissant", "Montant
       croissant") à côté des filtres statut/type existants.
 
