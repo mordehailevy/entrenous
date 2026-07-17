@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import type { Currency } from '../types';
 import { Button } from './Button';
 import { Input, Label, Select } from './Input';
@@ -14,6 +14,15 @@ export function NewLedgerModal({ onClose, onCreate }: NewLedgerModalProps) {
   const [isPrivate, setIsPrivate] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Permet de fermer la modale avec la touche Échap, en plus du bouton "Annuler".
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') onClose();
+    }
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();

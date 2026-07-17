@@ -24,7 +24,15 @@ export function GuestLedgerPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
+
+  // Petit message de succès temporaire (ex: "Transaction confirmée."), affiché
+  // après une action réussie et effacé automatiquement après quelques secondes.
+  function flashMessage(message: string) {
+    setActionMessage(message);
+    setTimeout(() => setActionMessage((current) => (current === message ? null : current)), 2500);
+  }
   const [guestName, setGuestName] = useState<string | null>(() => localStorage.getItem(guestNameKey));
   const [nameInput, setNameInput] = useState('');
   const [claiming, setClaiming] = useState(false);
@@ -125,6 +133,7 @@ export function GuestLedgerPage() {
       setActionError(error.message);
       return;
     }
+    flashMessage('✅ Transaction confirmée.');
     await load();
   }
 
@@ -141,6 +150,7 @@ export function GuestLedgerPage() {
       setActionError(error.message);
       return;
     }
+    flashMessage('⚠️ Contestation envoyée.');
     await load();
   }
 
@@ -378,6 +388,7 @@ export function GuestLedgerPage() {
 
         <Card ref={historyRef}>
           <h2 className="mb-2 text-sm font-semibold text-ink">Historique</h2>
+          {actionMessage && <p className="mb-3 text-sm text-credit">{actionMessage}</p>}
           {actionError && <p className="mb-3 text-sm text-debt">{actionError}</p>}
           <TransactionList
             transactions={transactions}

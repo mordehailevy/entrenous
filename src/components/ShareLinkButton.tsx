@@ -15,7 +15,7 @@ export function ShareLinkButton({ shareToken, onRegenerate }: ShareLinkButtonPro
     try {
       await navigator.clipboard.writeText(url);
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      setTimeout(() => setCopied(false), 3000);
     } catch {
       window.prompt('Copiez ce lien :', url);
     }

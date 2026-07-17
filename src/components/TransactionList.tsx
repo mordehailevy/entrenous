@@ -202,7 +202,9 @@ export function TransactionList({
                       <button
                         type="button"
                         onClick={() => setEditingId(tx.id)}
-                        className="text-xs font-medium text-gray-500 hover:text-ink"
+                        // Padding + marge négative : agrandit la zone tactile (~44px, cf.
+                        // recommandations mobile) sans changer la taille visuelle du texte.
+                        className="-m-2 p-2 text-xs font-medium text-gray-500 hover:text-ink"
                       >
                         Modifier
                       </button>
@@ -212,7 +214,7 @@ export function TransactionList({
                         type="button"
                         onClick={() => handleDelete(tx)}
                         disabled={busyId === tx.id}
-                        className="text-xs font-medium text-gray-500 hover:text-debt"
+                        className="-m-2 p-2 text-xs font-medium text-gray-500 hover:text-debt"
                       >
                         Supprimer
                       </button>

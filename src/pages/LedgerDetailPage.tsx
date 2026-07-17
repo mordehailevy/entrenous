@@ -25,8 +25,16 @@ export function LedgerDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [actionMessage, setActionMessage] = useState<string | null>(null);
   const formRef = useRef<HTMLDivElement>(null);
   const historyRef = useRef<HTMLDivElement>(null);
+
+  // Petit message de succès temporaire (ex: "Transaction confirmée."), affiché
+  // après une action réussie et effacé automatiquement après quelques secondes.
+  function flashMessage(message: string) {
+    setActionMessage(message);
+    setTimeout(() => setActionMessage((current) => (current === message ? null : current)), 2500);
+  }
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -82,6 +90,7 @@ export function LedgerDetailPage() {
       setActionError(error.message);
       return;
     }
+    flashMessage('✅ Transaction confirmée.');
     await load();
   }
 
@@ -95,6 +104,7 @@ export function LedgerDetailPage() {
       setActionError(error.message);
       return;
     }
+    flashMessage('⚠️ Contestation envoyée.');
     await load();
   }
 
@@ -311,6 +321,7 @@ export function LedgerDetailPage() {
 
         <Card ref={historyRef}>
           <h2 className="mb-2 text-sm font-semibold text-ink">Historique</h2>
+          {actionMessage && <p className="mb-3 text-sm text-credit">{actionMessage}</p>}
           {actionError && <p className="mb-3 text-sm text-debt">{actionError}</p>}
           <TransactionList
             transactions={transactions}

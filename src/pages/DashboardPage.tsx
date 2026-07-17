@@ -10,6 +10,7 @@ import { Card } from '../components/Card';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { NewLedgerModal } from '../components/NewLedgerModal';
+import { normalizeForSearch } from '../utils/search';
 
 interface LedgerWithBalance extends Ledger {
   confirmedBalance: number;
@@ -100,9 +101,9 @@ export function DashboardPage() {
   const privateLedgers = allLedgers.filter((l) => l.is_private);
 
   // Recherche par nom (personne ou catégorie), insensible à la casse/aux accents.
-  const normalizedSearch = search.trim().toLocaleLowerCase();
+  const normalizedSearch = normalizeForSearch(search);
   const matchesSearch = (ledger: LedgerWithBalance) =>
-    ledgerLabel(ledger).toLocaleLowerCase().includes(normalizedSearch);
+    normalizeForSearch(ledgerLabel(ledger)).includes(normalizedSearch);
   const filteredSharedLedgers = normalizedSearch ? sharedLedgers.filter(matchesSearch) : sharedLedgers;
   const filteredPrivateLedgers = normalizedSearch ? privateLedgers.filter(matchesSearch) : privateLedgers;
 
