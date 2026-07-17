@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/useAuth';
 import type { Direction, Ledger, Transaction, TransactionKind } from '../types';
 import { computeGuestBalance } from '../utils/balance';
+import { removeProofFile, uploadProof, validateProofFile } from '../utils/proof';
 import { Card } from '../components/Card';
 import { Button } from '../components/Button';
 import { Input, Label } from '../components/Input';
@@ -162,8 +163,49 @@ export function GuestLedgerPage() {
 
   async function handleDeleteTransaction(tx: Transaction) {
     if (!token) return;
+    if (tx.proof_path) await removeProofFile(tx.proof_path);
     const { error } = await supabase.rpc('guest_delete_transaction', { p_token: token, p_tx_id: tx.id });
     if (error) throw new Error(error.message);
+    await load();
+  }
+
+  async function handleSetProof(tx: Transaction, file: File) {
+    if (!token) return;
+    setActionError(null);
+    const validationError = validateProofFile(file);
+    if (validationError) {
+      setActionError(validationError);
+      return;
+    }
+    try {
+      const path = await uploadProof(token, tx.id, file);
+      const { error } = await supabase.rpc('guest_set_transaction_proof', {
+        p_token: token,
+        p_tx_id: tx.id,
+        p_proof_path: path,
+        p_proof_name: file.name,
+      });
+      if (error) throw new Error(error.message);
+      await load();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Erreur lors de l'envoi du fichier.");
+    }
+  }
+
+  async function handleRemoveProof(tx: Transaction) {
+    if (!token) return;
+    setActionError(null);
+    if (tx.proof_path) await removeProofFile(tx.proof_path);
+    const { error } = await supabase.rpc('guest_set_transaction_proof', {
+      p_token: token,
+      p_tx_id: tx.id,
+      p_proof_path: null,
+      p_proof_name: null,
+    });
+    if (error) {
+      setActionError(error.message);
+      return;
+    }
     await load();
   }
 
@@ -347,6 +389,8 @@ export function GuestLedgerPage() {
             onDispute={handleDispute}
             onEdit={handleEditTransaction}
             onDelete={handleDeleteTransaction}
+            onSetProof={handleSetProof}
+            onRemoveProof={handleRemoveProof}
           />
         </Card>
       </main>

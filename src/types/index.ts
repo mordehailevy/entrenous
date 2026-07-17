@@ -38,6 +38,8 @@ export interface Transaction {
   dispute_comment: string | null;
   confirmed_at: string | null;
   created_at: string;
+  proof_path: string | null;
+  proof_name: string | null;
 }
 
 export interface BalanceSummary {

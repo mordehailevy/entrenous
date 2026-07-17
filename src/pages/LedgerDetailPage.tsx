@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/useAuth';
 import type { Direction, Ledger, Transaction, TransactionKind } from '../types';
 import { computeBalanceHistory, computeGuestBalance, computeOwnerBalance } from '../utils/balance';
+import { removeProofFile, uploadProof, validateProofFile } from '../utils/proof';
 import { Header } from '../components/Header';
 import { Card } from '../components/Card';
 import { Button } from '../components/Button';
@@ -133,8 +134,44 @@ export function LedgerDetailPage() {
   }
 
   async function handleDeleteTransaction(tx: Transaction) {
+    if (tx.proof_path) await removeProofFile(tx.proof_path);
     const { error } = await supabase.from('transactions').delete().eq('id', tx.id);
     if (error) throw new Error(error.message);
+    await load();
+  }
+
+  async function handleSetProof(tx: Transaction, file: File) {
+    if (!ledger) return;
+    setActionError(null);
+    const validationError = validateProofFile(file);
+    if (validationError) {
+      setActionError(validationError);
+      return;
+    }
+    try {
+      const path = await uploadProof(ledger.share_token, tx.id, file);
+      const { error } = await supabase
+        .from('transactions')
+        .update({ proof_path: path, proof_name: file.name })
+        .eq('id', tx.id);
+      if (error) throw new Error(error.message);
+      await load();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Erreur lors de l'envoi du fichier.");
+    }
+  }
+
+  async function handleRemoveProof(tx: Transaction) {
+    setActionError(null);
+    if (tx.proof_path) await removeProofFile(tx.proof_path);
+    const { error } = await supabase
+      .from('transactions')
+      .update({ proof_path: null, proof_name: null })
+      .eq('id', tx.id);
+    if (error) {
+      setActionError(error.message);
+      return;
+    }
     await load();
   }
 
@@ -287,6 +324,8 @@ export function LedgerDetailPage() {
             readOnly={ledger.is_private}
             onEdit={handleEditTransaction}
             onDelete={handleDeleteTransaction}
+            onSetProof={handleSetProof}
+            onRemoveProof={handleRemoveProof}
           />
         </Card>
       </main>
