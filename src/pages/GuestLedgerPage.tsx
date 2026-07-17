@@ -251,6 +251,8 @@ export function GuestLedgerPage() {
     );
   }
 
+  if (!guestName) return null; // toujours vrai ici (cf. les deux early-returns ci-dessus) ; satisfait le narrowing TS
+
   const { confirmedBalance, pendingBalance } = computeGuestBalance(transactions);
 
   return (
