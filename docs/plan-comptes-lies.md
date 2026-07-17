@@ -5,7 +5,7 @@ compte partagé (ledger) doit apparaître dans **son propre tableau de bord**, a
 solde de son point de vue. Le mode "invité anonyme, sans inscription" reste disponible en
 option, il n'est pas supprimé.
 
-Statut global : **LIVRÉ ET VÉRIFIÉ EN LOCAL — reste à appliquer en production (voir note en bas)**
+Statut global : **LIVRÉ ET VÉRIFIÉ EN PRODUCTION (`entrenous.dev`)**
 
 ## 1. Base de données (migration `0004_counterparty_account_link.sql`)
 - [x] Ajouter colonne `ledgers.counterparty_id uuid null references auth.users(id) on delete set null`
@@ -77,10 +77,16 @@ Statut global : **LIVRÉ ET VÉRIFIÉ EN LOCAL — reste à appliquer en product
 ## 8. Documentation / mémoire
 - [x] Mettre à jour `project_status.md` une fois livré et vérifié (fait dans cette session)
 
-## Note — reste à faire pour une mise en production complète
-Le code frontend et la migration DB sont vérifiés en local uniquement. Pour que la
-fonctionnalité soit active sur `https://entrenous.dev`, il reste :
-1. Appliquer `supabase/migrations/0004_counterparty_account_link.sql` sur le projet
-   Supabase Cloud (copier-coller dans le SQL Editor, l'assistant n'y a pas d'accès direct).
-2. `git push` des changements frontend + déploiement Vercel (automatique si le repo est
-   connecté, sinon déclenchement manuel).
+## Mise en production — fait et vérifié (2026-07-17)
+1. [x] Migration `0004_counterparty_account_link.sql` appliquée sur le projet Supabase Cloud
+       (vérifiée directement via une connexion Postgres : colonne, index, fonction avec les
+       bons grants, et les 5 policies RLS sont bien présentes).
+2. [x] `git push` des changements frontend + déploiement Vercel réussi (un bug de build
+       TypeScript découvert et corrigé au passage, voir `testing_approach.md`).
+3. [x] Test de bout en bout **en production réelle** (`https://entrenous.dev`, deux vrais
+       comptes de test) : inscription, création de ledger, lien de partage, claim par un
+       second compte, apparition correcte sur les deux tableaux de bord, transaction visible
+       des deux côtés. Comptes et données de test supprimés après coup, vérifié à zéro
+       restant.
+
+**Rien ne reste en attente pour cette fonctionnalité.**
