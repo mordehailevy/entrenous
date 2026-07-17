@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/useAuth';
 import { AuthLayout } from '../components/AuthLayout';
 import { Button } from '../components/Button';
@@ -8,6 +8,11 @@ import { Input, Label } from '../components/Input';
 export function SignupPage() {
   const { signUp } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  // Un lien "?next=/l/<token>" est ajouté quand on arrive ici depuis une page
+  // invité (voir GuestLedgerPage), pour revenir sur ce même lien une fois le
+  // compte confirmé et pouvoir l'associer automatiquement à ce ledger.
+  const next = searchParams.get('next');
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -24,7 +29,7 @@ export function SignupPage() {
       return;
     }
     setLoading(true);
-    const { error, needsEmailConfirmation } = await signUp(email, password, displayName);
+    const { error, needsEmailConfirmation } = await signUp(email, password, displayName, next ?? undefined);
     setLoading(false);
     if (error) {
       setError(error);
@@ -34,9 +39,10 @@ export function SignupPage() {
     setNeedsConfirmation(needsEmailConfirmation);
     // Si une confirmation email est requise, l'utilisateur n'a pas encore de
     // session : le rediriger vers "/" le renverrait à la connexion, ce qui
-    // contredirait le message affiché.
+    // contredirait le message affiché. Le lien de confirmation email renverra
+    // directement vers `next` (voir emailRedirectTo dans AuthContext).
     if (!needsEmailConfirmation) {
-      setTimeout(() => navigate('/'), 1500);
+      setTimeout(() => navigate(next ?? '/'), 1500);
     }
   }
 
@@ -90,7 +96,10 @@ export function SignupPage() {
       )}
       <p className="mt-6 text-center text-sm text-gray-500">
         Déjà inscrit ?{' '}
-        <Link to="/connexion" className="font-semibold text-[--color-accent-start]">
+        <Link
+          to={next ? `/connexion?next=${encodeURIComponent(next)}` : '/connexion'}
+          className="font-semibold text-[--color-accent-start]"
+        >
           Connectez-vous
         </Link>
       </p>

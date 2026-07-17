@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/useAuth';
 import type { Currency, Ledger, Transaction } from '../types';
-import { computeOwnerBalance } from '../utils/balance';
+import { computeGuestBalance, computeOwnerBalance } from '../utils/balance';
 import { formatAmount } from '../utils/format';
 import { Header } from '../components/Header';
 import { Card } from '../components/Card';
@@ -13,6 +13,9 @@ import { NewLedgerModal } from '../components/NewLedgerModal';
 interface LedgerWithBalance extends Ledger {
   confirmedBalance: number;
   pendingBalance: number;
+  // true si l'utilisateur courant est le counterparty (compte associé depuis
+  // un lien de partage) plutôt que le propriétaire de ce ledger.
+  viewerIsCounterparty: boolean;
 }
 
 export function DashboardPage() {
@@ -53,13 +56,21 @@ export function DashboardPage() {
     }
 
     const withBalances = rows.map((ledger) => {
-      const balance = computeOwnerBalance(txByLedger.get(ledger.id) ?? []);
-      return { ...ledger, confirmedBalance: balance.confirmedBalance, pendingBalance: balance.pendingBalance };
+      const viewerIsCounterparty = ledger.owner_id !== user?.id && ledger.counterparty_id === user?.id;
+      const balance = viewerIsCounterparty
+        ? computeGuestBalance(txByLedger.get(ledger.id) ?? [])
+        : computeOwnerBalance(txByLedger.get(ledger.id) ?? []);
+      return {
+        ...ledger,
+        confirmedBalance: balance.confirmedBalance,
+        pendingBalance: balance.pendingBalance,
+        viewerIsCounterparty,
+      };
     });
 
     setLedgers(withBalances);
     setLoading(false);
-  }, []);
+  }, [user?.id]);
 
   useEffect(() => {
     if (user) loadLedgers();
@@ -168,11 +179,12 @@ export function DashboardPage() {
 
 function LedgerRow({ ledger }: { ledger: LedgerWithBalance }) {
   const isCredit = ledger.confirmedBalance >= 0;
+  const label = ledger.viewerIsCounterparty ? ledger.owner_display_name : ledger.counterparty_name;
   return (
     <Link to={`/comptes/${ledger.id}`}>
       <Card className="flex items-center justify-between transition-shadow hover:shadow-md">
         <div>
-          <p className="font-semibold text-ink">{ledger.counterparty_name}</p>
+          <p className="font-semibold text-ink">{label}</p>
           {ledger.pendingBalance !== 0 && (
             <span className="mt-1 inline-block rounded-full bg-pending-bg px-2 py-0.5 text-xs font-medium text-pending">
               {formatAmount(ledger.pendingBalance, ledger.currency)} en attente

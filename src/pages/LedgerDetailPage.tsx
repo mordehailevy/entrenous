@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/useAuth';
 import type { Direction, Ledger, Transaction, TransactionKind } from '../types';
-import { computeBalanceHistory, computeOwnerBalance } from '../utils/balance';
+import { computeBalanceHistory, computeGuestBalance, computeOwnerBalance } from '../utils/balance';
 import { Header } from '../components/Header';
 import { Card } from '../components/Card';
 import { Button } from '../components/Button';
@@ -17,7 +17,7 @@ import { EditableLedgerName } from '../components/EditableLedgerName';
 export function LedgerDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { profile } = useAuth();
+  const { user, profile } = useAuth();
   const [ledger, setLedger] = useState<Ledger | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [showForm, setShowForm] = useState(false);
@@ -55,13 +55,14 @@ export function LedgerDetailPage() {
     note: string;
   }) {
     if (!ledger) return;
+    const createdBy = ledger.owner_id === user?.id ? 'owner' : 'counterparty';
     const { error } = await supabase.from('transactions').insert({
       ledger_id: ledger.id,
       amount: values.amount,
       direction: values.direction,
       kind: values.kind,
       note: values.note || null,
-      created_by: 'owner',
+      created_by: createdBy,
       status: ledger.is_private ? 'confirmed' : 'pending',
       confirmed_at: ledger.is_private ? new Date().toISOString() : null,
     });
@@ -167,9 +168,22 @@ export function LedgerDetailPage() {
     );
   }
 
-  const { confirmedBalance, pendingBalance } = computeOwnerBalance(transactions);
-  const history = computeBalanceHistory(transactions);
-  const ownerLabel = profile?.display_name ?? 'Vous';
+  // Un ledger peut désormais être vu par deux comptes réels : son
+  // propriétaire, ou le counterparty qui a associé son compte depuis le lien
+  // de partage (voir GuestLedgerPage). Tout le calcul de solde/labels doit
+  // s'adapter au point de vue du viewer courant.
+  const isCounterparty = ledger.owner_id !== user?.id && ledger.counterparty_id === user?.id;
+  const viewerRole: 'owner' | 'counterparty' = isCounterparty ? 'counterparty' : 'owner';
+  const { confirmedBalance, pendingBalance } = isCounterparty
+    ? computeGuestBalance(transactions)
+    : computeOwnerBalance(transactions);
+  const ownerHistory = computeBalanceHistory(transactions);
+  const history = isCounterparty
+    ? ownerHistory.map((point) => ({ ...point, balance: -point.balance }))
+    : ownerHistory;
+  // ownerLabel/counterpartyLabel reflètent toujours les vrais noms stockés
+  // sur le ledger, indépendamment de qui regarde.
+  const ownerLabel = ledger.owner_display_name || profile?.display_name || 'Vous';
 
   return (
     <div className="min-h-svh">
@@ -181,26 +195,44 @@ export function LedgerDetailPage() {
 
         <Card className="mb-4">
           <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-            <EditableLedgerName name={ledger.counterparty_name} onSave={handleRenameLedger} />
-            <div className="flex flex-wrap items-center gap-2">
-              {!ledger.is_private && (
-                <ShareLinkButton shareToken={ledger.share_token} onRegenerate={handleRegenerateShareToken} />
-              )}
-              <button
-                type="button"
-                onClick={handleDeleteLedger}
-                className="text-xs font-medium text-gray-500 hover:text-debt"
-              >
-                Supprimer
-              </button>
-            </div>
+            {isCounterparty ? (
+              <h1 className="text-lg font-bold text-ink">{ledger.owner_display_name}</h1>
+            ) : (
+              <EditableLedgerName name={ledger.counterparty_name} onSave={handleRenameLedger} />
+            )}
+            {!isCounterparty && (
+              <div className="flex flex-wrap items-center gap-2">
+                {!ledger.is_private && (
+                  <ShareLinkButton shareToken={ledger.share_token} onRegenerate={handleRegenerateShareToken} />
+                )}
+                <button
+                  type="button"
+                  onClick={handleDeleteLedger}
+                  className="text-xs font-medium text-gray-500 hover:text-debt"
+                >
+                  Supprimer
+                </button>
+              </div>
+            )}
           </div>
           <BalanceDisplay
             confirmedBalance={confirmedBalance}
             pendingBalance={pendingBalance}
             currency={ledger.currency}
-            theyOweYouLabel={ledger.is_private ? 'On vous doit' : `${ledger.counterparty_name} vous doit`}
-            youOweThemLabel={ledger.is_private ? 'Vous devez' : `Vous devez à ${ledger.counterparty_name}`}
+            theyOweYouLabel={
+              isCounterparty
+                ? `${ledger.owner_display_name} vous doit`
+                : ledger.is_private
+                  ? 'On vous doit'
+                  : `${ledger.counterparty_name} vous doit`
+            }
+            youOweThemLabel={
+              isCounterparty
+                ? `Vous devez à ${ledger.owner_display_name}`
+                : ledger.is_private
+                  ? 'Vous devez'
+                  : `Vous devez à ${ledger.counterparty_name}`
+            }
           />
         </Card>
 
@@ -215,7 +247,7 @@ export function LedgerDetailPage() {
           {showForm ? (
             <TransactionForm
               currency={ledger.currency}
-              actor="owner"
+              actor={viewerRole}
               ownerLabel={ownerLabel}
               counterpartyLabel={ledger.counterparty_name}
               isPrivate={ledger.is_private}
@@ -246,7 +278,7 @@ export function LedgerDetailPage() {
           <TransactionList
             transactions={transactions}
             currency={ledger.currency}
-            viewer="owner"
+            viewer={viewerRole}
             ownerLabel={ownerLabel}
             counterpartyLabel={ledger.counterparty_name}
             isPrivate={ledger.is_private}

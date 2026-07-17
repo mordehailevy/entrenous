@@ -35,11 +35,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     refreshProfile(session.user.id);
   }, [session?.user, refreshProfile]);
 
-  async function signUp(email: string, password: string, displayName: string) {
+  async function signUp(email: string, password: string, displayName: string, redirectTo?: string) {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { display_name: displayName } },
+      options: {
+        data: { display_name: displayName },
+        ...(redirectTo ? { emailRedirectTo: `${window.location.origin}${redirectTo}` } : {}),
+      },
     });
     // Si la confirmation email est activée sur le projet Supabase, signUp ne
     // renvoie pas de session : l'utilisateur n'est pas encore connecté.

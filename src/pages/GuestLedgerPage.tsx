@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
+import { useAuth } from '../context/useAuth';
 import type { Direction, Ledger, Transaction, TransactionKind } from '../types';
 import { computeGuestBalance } from '../utils/balance';
 import { Card } from '../components/Card';
@@ -14,6 +15,8 @@ const GUEST_NAME_KEY_PREFIX = 'entrenous_guest_name:';
 
 export function GuestLedgerPage() {
   const { token } = useParams<{ token: string }>();
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const guestNameKey = `${GUEST_NAME_KEY_PREFIX}${token}`;
   const [ledger, setLedger] = useState<Ledger | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -23,8 +26,11 @@ export function GuestLedgerPage() {
   const [showForm, setShowForm] = useState(false);
   const [guestName, setGuestName] = useState<string | null>(() => localStorage.getItem(guestNameKey));
   const [nameInput, setNameInput] = useState('');
+  const [claiming, setClaiming] = useState(false);
+  const [claimError, setClaimError] = useState<string | null>(null);
   const formRef = useRef<HTMLDivElement>(null);
   const historyRef = useRef<HTMLDivElement>(null);
+  const nextParam = `?next=${encodeURIComponent(`/l/${token}`)}`;
 
   const load = useCallback(async () => {
     if (!token) return;
@@ -50,6 +56,30 @@ export function GuestLedgerPage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  // Si l'utilisateur connecté est déjà le propriétaire ou le counterparty
+  // associé de ce ledger, inutile de lui montrer la vue invité : direction
+  // directe vers sa propre page de compte.
+  useEffect(() => {
+    if (!user || !ledger) return;
+    if (user.id === ledger.owner_id || user.id === ledger.counterparty_id) {
+      navigate(`/comptes/${ledger.id}`, { replace: true });
+    }
+  }, [user, ledger, navigate]);
+
+  async function handleClaim() {
+    if (!token) return;
+    setClaiming(true);
+    setClaimError(null);
+    const { data, error } = await supabase.rpc('claim_ledger_as_counterparty', { p_token: token });
+    setClaiming(false);
+    if (error) {
+      setClaimError(error.message);
+      return;
+    }
+    const claimed = data as Ledger;
+    navigate(`/comptes/${claimed.id}`, { replace: true });
+  }
 
   function handleSaveName(e: FormEvent) {
     e.preventDefault();
@@ -144,7 +174,7 @@ export function GuestLedgerPage() {
     );
   }
 
-  if (!guestName) {
+  if (!guestName && !user) {
     return (
       <div className="flex min-h-svh items-center justify-center px-4">
         <div className="w-full max-w-sm">
@@ -154,25 +184,67 @@ export function GuestLedgerPage() {
           </p>
           <p className="mb-6 text-center text-sm text-gray-500">
             {ledger.owner_display_name} utilise EntreNous pour suivre vos comptes ensemble (dettes,
-            virements). Indiquez votre prénom pour voir le solde et l'historique — aucune inscription
-            n'est nécessaire.
+            virements).
           </p>
+          <Card className="mb-4">
+            <p className="mb-3 text-sm text-ink">
+              Connectez-vous ou créez un compte pour retrouver ce suivi directement dans votre
+              tableau de bord.
+            </p>
+            <div className="flex gap-2">
+              <Link to={`/connexion${nextParam}`} className="flex-1">
+                <Button className="w-full">Se connecter</Button>
+              </Link>
+              <Link to={`/inscription${nextParam}`} className="flex-1">
+                <Button variant="secondary" className="w-full">
+                  Créer un compte
+                </Button>
+              </Link>
+            </div>
+          </Card>
           <Card>
+            <p className="mb-3 text-sm text-gray-500">
+              Ou continuez sans compte : indiquez votre prénom pour voir le solde et l'historique,
+              aucune inscription n'est nécessaire.
+            </p>
             <form onSubmit={handleSaveName} className="space-y-4">
               <div>
                 <Label htmlFor="guestName">Votre prénom</Label>
                 <Input
                   id="guestName"
                   required
-                  autoFocus
                   value={nameInput}
                   onChange={(e) => setNameInput(e.target.value)}
                 />
               </div>
-              <Button type="submit" className="w-full">
-                Continuer
+              <Button type="submit" variant="secondary" className="w-full">
+                Continuer sans compte
               </Button>
             </form>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
+  if (!guestName && user) {
+    // Utilisateur déjà connecté (mais pas encore owner/counterparty de ce
+    // ledger, sinon le useEffect ci-dessus l'aurait déjà redirigé) : on lui
+    // propose directement d'associer son compte plutôt que de lui redemander
+    // un prénom d'invité.
+    return (
+      <div className="flex min-h-svh items-center justify-center px-4">
+        <div className="w-full max-w-sm text-center">
+          <h1 className="gradient-text mb-1 text-2xl font-extrabold">EntreNous</h1>
+          <p className="mb-6 text-sm text-gray-500">Compte entre vous et {ledger.owner_display_name}</p>
+          <Card>
+            <p className="mb-3 text-sm text-ink">
+              Associez ce suivi à votre compte pour le retrouver dans votre tableau de bord.
+            </p>
+            {claimError && <p className="mb-3 text-sm text-debt">{claimError}</p>}
+            <Button className="w-full" onClick={handleClaim} disabled={claiming}>
+              {claiming ? 'Association...' : 'Associer ce compte à ce suivi'}
+            </Button>
           </Card>
         </div>
       </div>
@@ -189,14 +261,31 @@ export function GuestLedgerPage() {
       </header>
       <main className="mx-auto max-w-3xl px-4 py-6">
         <Card className="mb-4 border-2 border-dashed border-[--color-accent-start]/30">
-          <p className="text-sm text-ink">
-            👋 Créez votre compte gratuit pour gérer vos propres dettes et envoyer vos liens.
-          </p>
-          <Link to="/inscription">
-            <Button variant="secondary" className="mt-3">
-              Créer mon compte
-            </Button>
-          </Link>
+          {user ? (
+            <>
+              <p className="text-sm text-ink">
+                👋 Associez ce suivi à votre compte pour le retrouver dans votre tableau de bord.
+              </p>
+              {claimError && <p className="mt-2 text-sm text-debt">{claimError}</p>}
+              <Button variant="secondary" className="mt-3" onClick={handleClaim} disabled={claiming}>
+                {claiming ? 'Association...' : 'Associer ce compte à ce suivi'}
+              </Button>
+            </>
+          ) : (
+            <>
+              <p className="text-sm text-ink">
+                👋 Créez votre compte gratuit pour retrouver ce suivi dans votre tableau de bord.
+              </p>
+              <div className="mt-3 flex gap-2">
+                <Link to={`/connexion${nextParam}`}>
+                  <Button variant="secondary">Se connecter</Button>
+                </Link>
+                <Link to={`/inscription${nextParam}`}>
+                  <Button variant="secondary">Créer mon compte</Button>
+                </Link>
+              </div>
+            </>
+          )}
         </Card>
 
         <Card className="mb-4">

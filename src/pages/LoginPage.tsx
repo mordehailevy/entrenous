@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/useAuth';
 import { AuthLayout } from '../components/AuthLayout';
 import { Button } from '../components/Button';
@@ -8,6 +8,10 @@ import { Input, Label } from '../components/Input';
 export function LoginPage() {
   const { signIn } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  // Cf. SignupPage : "?next=/l/<token>" ramène vers la page invité d'origine
+  // après connexion, pour pouvoir associer ce ledger au compte.
+  const next = searchParams.get('next');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -23,7 +27,7 @@ export function LoginPage() {
       setError('Identifiants incorrects. Vérifiez votre email et mot de passe.');
       return;
     }
-    navigate('/');
+    navigate(next ?? '/');
   }
 
   return (
@@ -63,7 +67,10 @@ export function LoginPage() {
       </form>
       <p className="mt-6 text-center text-sm text-gray-500">
         Pas encore de compte ?{' '}
-        <Link to="/inscription" className="font-semibold text-[--color-accent-start]">
+        <Link
+          to={next ? `/inscription?next=${encodeURIComponent(next)}` : '/inscription'}
+          className="font-semibold text-[--color-accent-start]"
+        >
           Inscrivez-vous
         </Link>
       </p>

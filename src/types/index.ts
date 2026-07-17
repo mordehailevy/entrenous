@@ -19,6 +19,7 @@ export interface Ledger {
   owner_id: string;
   owner_display_name: string;
   counterparty_name: string;
+  counterparty_id: string | null;
   share_token: string;
   currency: Currency;
   is_private: boolean;
