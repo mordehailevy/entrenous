@@ -181,7 +181,7 @@ function LedgerRow({ ledger }: { ledger: LedgerWithBalance }) {
   const isCredit = ledger.confirmedBalance >= 0;
   const label = ledger.viewerIsCounterparty ? ledger.owner_display_name : ledger.counterparty_name;
   return (
-    <Link to={`/comptes/${ledger.id}`}>
+    <Link to={`/comptes/${ledger.id}`} className="block">
       <Card className="flex items-center justify-between transition-shadow hover:shadow-md">
         <div>
           <p className="font-semibold text-ink">{label}</p>
