@@ -6,6 +6,7 @@ import type { Direction, Ledger, Transaction, TransactionKind } from '../types';
 import { computeBalanceHistory, computeGuestBalance, computeOwnerBalance } from '../utils/balance';
 import { removeProofFile, uploadProof, validateProofFile } from '../utils/proof';
 import { exportTransactionsToCsv } from '../utils/csvExport';
+import { notifyTransactionEvent } from '../utils/notify';
 import { Header } from '../components/Header';
 import { Card } from '../components/Card';
 import { Button } from '../components/Button';
@@ -66,19 +67,26 @@ export function LedgerDetailPage() {
   }) {
     if (!ledger) return;
     const createdBy = ledger.owner_id === user?.id ? 'owner' : 'counterparty';
-    const { error } = await supabase.from('transactions').insert({
-      ledger_id: ledger.id,
-      amount: values.amount,
-      direction: values.direction,
-      kind: values.kind,
-      note: values.note || null,
-      created_by: createdBy,
-      status: ledger.is_private ? 'confirmed' : 'pending',
-      confirmed_at: ledger.is_private ? new Date().toISOString() : null,
-    });
+    const { data: inserted, error } = await supabase
+      .from('transactions')
+      .insert({
+        ledger_id: ledger.id,
+        amount: values.amount,
+        direction: values.direction,
+        kind: values.kind,
+        note: values.note || null,
+        created_by: createdBy,
+        status: ledger.is_private ? 'confirmed' : 'pending',
+        confirmed_at: ledger.is_private ? new Date().toISOString() : null,
+      })
+      .select('id')
+      .single();
     if (error) throw new Error(error.message);
     setShowForm(false);
     await load();
+    if (inserted) {
+      notifyTransactionEvent({ transactionId: inserted.id, eventType: 'new_transaction', ledgerId: ledger.id });
+    }
   }
 
   async function handleConfirm(tx: Transaction) {
@@ -107,6 +115,9 @@ export function LedgerDetailPage() {
     }
     flashMessage('⚠️ Contestation envoyée.');
     await load();
+    if (ledger) {
+      notifyTransactionEvent({ transactionId: tx.id, eventType: 'dispute', ledgerId: ledger.id });
+    }
   }
 
   async function handleEditTransaction(

@@ -35,19 +35,34 @@ Statut global : **EN COURS**
       existants.
 
 ## 6. Notifications email sur les événements clés
-- [ ] Décider du déclencheur minimal viable : au moins "une transaction est
-      ajoutée par l'autre partie" et "une transaction est contestée".
-- [ ] Design technique : Supabase Edge Function déclenchée par un trigger DB
-      (ou appelée directement depuis le frontend juste après l'insert/update
-      réussi), envoyant un email via Resend (déjà configuré pour les emails
-      d'auth, cf. `deployment_status.md`).
-- [ ] Respecter la vie privée : l'email ne doit pas fuiter d'informations
-      sensibles au-delà de ce que l'app affiche déjà à cette personne.
-- [ ] Migration SQL si besoin (nouvelle fonction/trigger), à ajouter en
-      `supabase/migrations/0006_...sql`.
-- [ ] Tester en local avec Mailpit (inbox de test locale), puis en production
-      une fois le SQL appliqué manuellement par l'utilisateur (comme pour les
-      migrations précédentes).
+- [x] Déclencheurs retenus (confirmé par l'utilisateur) : "une transaction est
+      ajoutée par l'autre partie" ET "une transaction est contestée".
+- [x] Design technique : Edge Function `supabase/functions/notify-transaction-event`
+      appelée directement depuis le frontend (`src/utils/notify.ts`, best-effort,
+      ne bloque jamais l'UI) juste après l'insert/dispute réussi. Elle recalcule
+      elle-même le destinataire côté serveur (jamais fourni par le client) et
+      envoie l'email via Resend (`RESEND_API_KEY`, à configurer en prod).
+- [x] Respecter la vie privée : l'email ne contient aucune donnée sensible
+      (pas de montant, pas de note), seulement "vous avez une nouvelle
+      transaction / contestation, connectez-vous pour voir". Les comptes
+      privés (`is_private`) sont explicitement exclus (`skipped: private_ledger`).
+- [x] Migration SQL : `supabase/migrations/0006_service_role_grants.sql` — pas
+      liée directement à la fonctionnalité mais nécessaire pour qu'elle
+      fonctionne (voir bug ci-dessous).
+- [x] Testé en local : suite de tests HTTP directs contre l'Edge Function
+      (accès autorisé/refusé, ledger privé, transaction inconnue, invité via
+      lien de partage) + test UI Playwright bout-en-bout (ajout d'une
+      transaction déclenche bien l'appel, sans erreur console ni blocage). Pas
+      de vrai envoi testé localement (pas de clé Resend en local, la fonction
+      le détecte et logue au lieu d'échouer) — à vérifier en production après
+      déploiement (voir instructions fournies par l'assistant).
+- [x] **Bug découvert et corrigé pendant les tests** : le rôle `service_role`
+      (utilisé par les Edge Functions) n'avait aucun privilège SQL sur
+      `profiles`/`ledgers`/`transactions` (seuls `anon`/`authenticated`
+      avaient été couverts par les migrations précédentes) → toute lecture
+      via la clé de service échouait avec "permission denied for table".
+      Corrigé par `0006_service_role_grants.sql`. **Cette migration doit être
+      appliquée en production, sinon la fonction ne marchera pas du tout.**
 
 ## 7. Recherche dans les notes des transactions
 - [x] `src/components/TransactionList.tsx` : ajouter un champ de recherche

@@ -6,6 +6,7 @@ import type { Direction, Ledger, Transaction, TransactionKind } from '../types';
 import { computeGuestBalance } from '../utils/balance';
 import { removeProofFile, uploadProof, validateProofFile } from '../utils/proof';
 import { exportTransactionsToCsv } from '../utils/csvExport';
+import { notifyTransactionEvent } from '../utils/notify';
 import { Card } from '../components/Card';
 import { Button } from '../components/Button';
 import { Input, Label } from '../components/Input';
@@ -110,7 +111,7 @@ export function GuestLedgerPage() {
     note: string;
   }) {
     if (!token) return;
-    const { error } = await supabase.rpc('guest_add_transaction', {
+    const { data: inserted, error } = await supabase.rpc('guest_add_transaction', {
       p_token: token,
       p_amount: values.amount,
       p_direction: values.direction,
@@ -120,6 +121,9 @@ export function GuestLedgerPage() {
     if (error) throw new Error(error.message);
     setShowForm(false);
     await load();
+    if (inserted) {
+      notifyTransactionEvent({ transactionId: inserted.id, eventType: 'new_transaction', shareToken: token });
+    }
   }
 
   async function handleConfirm(tx: Transaction) {
@@ -153,6 +157,7 @@ export function GuestLedgerPage() {
     }
     flashMessage('⚠️ Contestation envoyée.');
     await load();
+    notifyTransactionEvent({ transactionId: tx.id, eventType: 'dispute', shareToken: token });
   }
 
   async function handleEditTransaction(
