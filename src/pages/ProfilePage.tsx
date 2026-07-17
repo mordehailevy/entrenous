@@ -17,11 +17,14 @@ export function ProfilePage() {
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     if (!user) return;
-    const trimmed = displayName.trim();
-    if (!trimmed) return;
-    setSaving(true);
     setError(null);
     setDone(false);
+    const trimmed = displayName.trim();
+    if (!trimmed) {
+      setError('Merci de saisir un prénom.');
+      return;
+    }
+    setSaving(true);
 
     const { error: profileError } = await supabase
       .from('profiles')
@@ -61,7 +64,7 @@ export function ProfilePage() {
 
         <Card>
           <h1 className="mb-4 text-lg font-bold text-ink">Mon profil</h1>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} noValidate className="space-y-4">
             <div>
               <Label htmlFor="displayName">Prénom affiché</Label>
               <Input

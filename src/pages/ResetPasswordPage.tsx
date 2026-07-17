@@ -58,7 +58,7 @@ export function ResetPasswordPage() {
       {done ? (
         <p className="text-center text-sm text-credit">Mot de passe mis à jour ! Redirection en cours...</p>
       ) : (
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} noValidate className="space-y-4">
           <div>
             <Label htmlFor="password">Nouveau mot de passe</Label>
             <Input

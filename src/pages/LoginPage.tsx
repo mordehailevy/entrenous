@@ -20,6 +20,14 @@ export function LoginPage() {
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
+    if (!email.trim()) {
+      setError('Merci de saisir votre email.');
+      return;
+    }
+    if (!password) {
+      setError('Merci de saisir votre mot de passe.');
+      return;
+    }
     setLoading(true);
     const { error } = await signIn(email, password);
     setLoading(false);
@@ -32,7 +40,7 @@ export function LoginPage() {
 
   return (
     <AuthLayout title="Connexion" subtitle="Suivi de dettes et virements confirmés à deux">
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} noValidate className="space-y-4">
         <div>
           <Label htmlFor="email">Email</Label>
           <Input

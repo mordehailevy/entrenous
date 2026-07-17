@@ -28,6 +28,7 @@ export function GuestLedgerPage() {
   const [nameInput, setNameInput] = useState('');
   const [claiming, setClaiming] = useState(false);
   const [claimError, setClaimError] = useState<string | null>(null);
+  const [nameError, setNameError] = useState<string | null>(null);
   const formRef = useRef<HTMLDivElement>(null);
   const historyRef = useRef<HTMLDivElement>(null);
   const nextParam = `?next=${encodeURIComponent(`/l/${token}`)}`;
@@ -83,7 +84,11 @@ export function GuestLedgerPage() {
 
   function handleSaveName(e: FormEvent) {
     e.preventDefault();
-    if (!nameInput.trim()) return;
+    if (!nameInput.trim()) {
+      setNameError('Merci de saisir votre prénom.');
+      return;
+    }
+    setNameError(null);
     localStorage.setItem(guestNameKey, nameInput.trim());
     setGuestName(nameInput.trim());
   }
@@ -207,7 +212,7 @@ export function GuestLedgerPage() {
               Ou continuez sans compte : indiquez votre prénom pour voir le solde et l'historique,
               aucune inscription n'est nécessaire.
             </p>
-            <form onSubmit={handleSaveName} className="space-y-4">
+            <form onSubmit={handleSaveName} noValidate className="space-y-4">
               <div>
                 <Label htmlFor="guestName">Votre prénom</Label>
                 <Input
@@ -217,6 +222,7 @@ export function GuestLedgerPage() {
                   onChange={(e) => setNameInput(e.target.value)}
                 />
               </div>
+              {nameError && <p className="text-sm text-debt">{nameError}</p>}
               <Button type="submit" variant="secondary" className="w-full">
                 Continuer sans compte
               </Button>

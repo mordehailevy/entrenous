@@ -24,6 +24,14 @@ export function SignupPage() {
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
+    if (!displayName.trim()) {
+      setError('Merci de saisir votre prénom.');
+      return;
+    }
+    if (!email.trim()) {
+      setError('Merci de saisir votre email.');
+      return;
+    }
     if (password.length < 6) {
       setError('Le mot de passe doit contenir au moins 6 caractères.');
       return;
@@ -55,7 +63,7 @@ export function SignupPage() {
             : 'Compte créé ! Redirection en cours...'}
         </p>
       ) : (
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} noValidate className="space-y-4">
           <div>
             <Label htmlFor="displayName">Prénom affiché</Label>
             <Input

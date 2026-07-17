@@ -36,7 +36,7 @@ export function NewLedgerModal({ onClose, onCreate }: NewLedgerModalProps) {
     <div className="fixed inset-0 z-20 flex items-center justify-center bg-black/40 px-4">
       <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
         <h2 className="mb-4 text-lg font-bold text-ink">Nouveau compte</h2>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} noValidate className="space-y-4">
           <div>
             <Label htmlFor="counterpartyName">
               {isPrivate ? 'Titre de la note' : 'Nom de la personne'}
