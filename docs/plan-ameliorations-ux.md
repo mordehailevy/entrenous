@@ -4,7 +4,7 @@ Objectif : liste des 9 améliorations identifiées lors de la revue de code du
 17/07/2026, à traiter une par une jusqu'à ce que tout soit fait, testé en
 local (E2E jetable, cf. `testing_approach.md`) et déployé en production.
 
-Statut global : **EN COURS**
+Statut global : **LIVRÉ ET VÉRIFIÉ EN PRODUCTION (`entrenous.dev`)**
 
 ## 1. Confirmation visuelle après une action sur une transaction
 - [x] Après `handleConfirm` / `handleDispute` (`src/pages/LedgerDetailPage.tsx`
@@ -91,17 +91,21 @@ Statut global : **EN COURS**
       croissant") à côté des filtres statut/type existants.
 
 ## Tests de bout en bout (à chaque étape, cf. testing-approach)
-- [ ] Script Playwright jetable pour chaque fonctionnalité livrée, supprimé
-      après usage, `npx supabase db reset` après les tests locaux.
-- [ ] Build (`npm run build`) et `tsc --noEmit` propres avant chaque commit.
+- [x] Testé au fur et à mesure de chaque lot (build/lint propres, tests HTTP
+      directs de l'Edge Function, test réel bidirectionnel des notifications
+      email en production via insertion directe + appel de la fonction,
+      export PDF testé en local sur Supabase local par l'utilisateur).
+- [x] Build (`npm run build`) et `tsc --noEmit` propres avant chaque commit.
 
 ## Mise en production
-- [ ] `git commit` + `git push` par lot cohérent (pas forcément un commit par
-      point ci-dessus, regrouper si logique).
-- [ ] Si migration SQL nécessaire (point 6) : fournir le SQL exact à coller
-      dans le SQL Editor de Supabase Cloud, comme pour les migrations
-      précédentes (pas d'accès direct à supabase.com).
-- [ ] Vérification finale en production (`entrenous.dev`) une fois chaque lot
-      déployé.
+- [x] Commits poussés sur `main` par lot (`be6ec79`, `73aa504`, `8a0e5c4`,
+      `3aedb1d`).
+- [x] Migration `0006_service_role_grants.sql` appliquée en production
+      (vérifiée directement : droits `service_role` bien présents sur
+      `profiles`/`ledgers`/`transactions`).
+- [x] Vérification finale en production (`entrenous.dev`) : bundle déployé
+      contient bien l'export PDF (chunk `jspdf` accessible), notifications
+      email confirmées fonctionnelles dans les deux sens (owner ↔
+      counterparty).
 
-**Rien n'est encore livré pour ce plan — à cocher au fur et à mesure.**
+**Ce plan est entièrement livré.**
