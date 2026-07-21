@@ -6,6 +6,7 @@ import type { Direction, Ledger, Transaction, TransactionKind } from '../types';
 import { computeBalanceHistory, computeGuestBalance, computeOwnerBalance } from '../utils/balance';
 import { removeProofFile, uploadProof, validateProofFile } from '../utils/proof';
 import { exportTransactionsToCsv } from '../utils/csvExport';
+import { exportTransactionsToPdf } from '../utils/pdfExport';
 import { notifyTransactionEvent } from '../utils/notify';
 import { Header } from '../components/Header';
 import { Card } from '../components/Card';
@@ -16,6 +17,7 @@ import { TransactionForm } from '../components/TransactionForm';
 import { TransactionList } from '../components/TransactionList';
 import { BalanceChart } from '../components/BalanceChart';
 import { EditableLedgerName } from '../components/EditableLedgerName';
+import { ExportMenu } from '../components/ExportMenu';
 
 export function LedgerDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -208,6 +210,18 @@ export function LedgerDetailPage() {
     });
   }
 
+  function handleExportPdf() {
+    if (!ledger) return;
+    const label = ledger.is_private ? 'notes' : ledger.counterparty_name;
+    exportTransactionsToPdf(transactions, {
+      fileName: `entrenous-${label}.pdf`,
+      currency: ledger.currency,
+      ownerLabel: ledger.owner_display_name || profile?.display_name || 'Vous',
+      counterpartyLabel: ledger.counterparty_name,
+      title: ledger.is_private ? 'Notes privées' : `Compte avec ${ledger.counterparty_name}`,
+    });
+  }
+
   async function handleDeleteLedger() {
     if (!ledger) return;
     const label = ledger.is_private ? 'cette note privée' : `le compte "${ledger.counterparty_name}"`;
@@ -345,15 +359,7 @@ export function LedgerDetailPage() {
         <Card ref={historyRef}>
           <div className="mb-2 flex items-center justify-between">
             <h2 className="text-sm font-semibold text-ink">Historique</h2>
-            {transactions.length > 0 && (
-              <button
-                type="button"
-                onClick={handleExportCsv}
-                className="-m-2 p-2 text-xs font-medium text-gray-500 hover:text-ink"
-              >
-                ⬇️ Exporter en CSV
-              </button>
-            )}
+            {transactions.length > 0 && <ExportMenu onExportCsv={handleExportCsv} onExportPdf={handleExportPdf} />}
           </div>
           {actionMessage && <p className="mb-3 text-sm text-credit">{actionMessage}</p>}
           {actionError && <p className="mb-3 text-sm text-debt">{actionError}</p>}

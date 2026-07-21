@@ -6,6 +6,7 @@ import type { Direction, Ledger, Transaction, TransactionKind } from '../types';
 import { computeGuestBalance } from '../utils/balance';
 import { removeProofFile, uploadProof, validateProofFile } from '../utils/proof';
 import { exportTransactionsToCsv } from '../utils/csvExport';
+import { exportTransactionsToPdf } from '../utils/pdfExport';
 import { notifyTransactionEvent } from '../utils/notify';
 import { Card } from '../components/Card';
 import { Button } from '../components/Button';
@@ -13,6 +14,7 @@ import { Input, Label } from '../components/Input';
 import { BalanceDisplay } from '../components/BalanceDisplay';
 import { TransactionForm } from '../components/TransactionForm';
 import { TransactionList } from '../components/TransactionList';
+import { ExportMenu } from '../components/ExportMenu';
 
 const GUEST_NAME_KEY_PREFIX = 'entrenous_guest_name:';
 
@@ -235,6 +237,17 @@ export function GuestLedgerPage() {
     });
   }
 
+  function handleExportPdf() {
+    if (!ledger) return;
+    exportTransactionsToPdf(transactions, {
+      fileName: `entrenous-${ledger.owner_display_name}.pdf`,
+      currency: ledger.currency,
+      ownerLabel: ledger.owner_display_name,
+      counterpartyLabel: guestName || ledger.counterparty_name,
+      title: `Compte avec ${ledger.owner_display_name}`,
+    });
+  }
+
   if (loading) {
     return <p className="py-16 text-center text-sm text-gray-400">Chargement...</p>;
   }
@@ -405,15 +418,7 @@ export function GuestLedgerPage() {
         <Card ref={historyRef}>
           <div className="mb-2 flex items-center justify-between">
             <h2 className="text-sm font-semibold text-ink">Historique</h2>
-            {transactions.length > 0 && (
-              <button
-                type="button"
-                onClick={handleExportCsv}
-                className="-m-2 p-2 text-xs font-medium text-gray-500 hover:text-ink"
-              >
-                ⬇️ Exporter en CSV
-              </button>
-            )}
+            {transactions.length > 0 && <ExportMenu onExportCsv={handleExportCsv} onExportPdf={handleExportPdf} />}
           </div>
           {actionMessage && <p className="mb-3 text-sm text-credit">{actionMessage}</p>}
           {actionError && <p className="mb-3 text-sm text-debt">{actionError}</p>}

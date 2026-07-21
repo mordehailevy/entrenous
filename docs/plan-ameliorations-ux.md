@@ -77,9 +77,13 @@ Statut global : **EN COURS**
       `GuestLedgerPage.tsx`), générant un fichier côté client (colonnes :
       date, montant, sens, type, statut, note) sans dépendance externe
       (`Blob` + lien de téléchargement).
-- [ ] PDF : à discuter séparément si demandé (nécessite une dépendance comme
-      `jspdf`, impact sur la taille du bundle déjà signalée par Vite à
-      828 kB).
+- [x] PDF : bouton unique "⬇️ Exporter" (menu déroulant CSV / PDF, cf.
+      `src/components/ExportMenu.tsx`) sur `LedgerDetailPage.tsx` et
+      `GuestLedgerPage.tsx`. `jspdf` + `jspdf-autotable` importés
+      dynamiquement (`src/utils/pdfExport.ts`) pour rester dans des chunks
+      séparés du bundle principal, testé en local (Supabase local + `npm run
+      build`) par l'utilisateur : le fichier se télécharge et s'affiche
+      correctement.
 
 ## 9. Tri des transactions (au-delà de la date)
 - [x] `src/components/TransactionList.tsx` : ajouter un sélecteur de tri
