@@ -4,6 +4,7 @@ import type { Currency } from '../types';
 import type { BalancePoint, DebtPoint } from '../utils/balance';
 import { computeDebtHistory, computeRepaidTotal } from '../utils/balance';
 import { formatAmount, formatDate } from '../utils/format';
+import { EurEquivalent } from './EurEquivalent';
 
 interface BalanceChartProps {
   /** Historique du solde validé, du point de vue du viewer (positif = on lui doit). */
@@ -48,6 +49,7 @@ export function BalanceChart({ data, currency, theyOweYouLabel, youOweThemLabel 
               </span>
             )}
           </p>
+          <EurEquivalent amount={current.remaining} currency={currency} className="text-sm" />
         </div>
         <div className="text-right">
           <p className="text-xs text-gray-500">Déjà remboursé</p>

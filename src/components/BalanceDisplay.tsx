@@ -1,5 +1,6 @@
 import type { Currency } from '../types';
 import { formatAmount } from '../utils/format';
+import { EurEquivalent } from './EurEquivalent';
 
 interface BalanceDisplayProps {
   confirmedBalance: number;
@@ -27,6 +28,7 @@ export function BalanceDisplay({
       <p className={`text-4xl font-extrabold tracking-tight ${colorClass}`}>
         {formatAmount(confirmedBalance, currency)}
       </p>
+      <EurEquivalent amount={confirmedBalance} currency={currency} showRate className="block text-sm" />
       {pendingBalance !== 0 && (
         <p className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-pending-bg px-2.5 py-1 text-xs font-medium text-pending">
           ⏳ {formatAmount(pendingBalance, currency)} en attente de confirmation

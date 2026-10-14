@@ -17,6 +17,7 @@ import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { NewLedgerModal } from '../components/NewLedgerModal';
 import { BalanceChart } from '../components/BalanceChart';
+import { EurEquivalent } from '../components/EurEquivalent';
 import { normalizeForSearch } from '../utils/search';
 
 interface LedgerWithBalance extends Ledger {
@@ -153,6 +154,7 @@ export function DashboardPage() {
               currencyTotals.map(([currency, totals]) => (
                 <p key={currency} className="text-xl font-bold text-credit">
                   {formatAmount(totals.owed, currency)}
+                  <EurEquivalent amount={totals.owed} currency={currency} className="block text-xs font-medium" />
                 </p>
               ))
             )}
@@ -165,6 +167,7 @@ export function DashboardPage() {
               currencyTotals.map(([currency, totals]) => (
                 <p key={currency} className="text-xl font-bold text-debt">
                   {formatAmount(totals.owing, currency)}
+                  <EurEquivalent amount={totals.owing} currency={currency} className="block text-xs font-medium" />
                 </p>
               ))
             )}
@@ -257,9 +260,12 @@ function LedgerRow({ ledger }: { ledger: LedgerWithBalance }) {
             </span>
           )}
         </div>
-        <p className={`text-lg font-bold ${ledger.confirmedBalance === 0 ? 'text-ink' : isCredit ? 'text-credit' : 'text-debt'}`}>
-          {formatAmount(ledger.confirmedBalance, ledger.currency)}
-        </p>
+        <div className="text-right">
+          <p className={`text-lg font-bold ${ledger.confirmedBalance === 0 ? 'text-ink' : isCredit ? 'text-credit' : 'text-debt'}`}>
+            {formatAmount(ledger.confirmedBalance, ledger.currency)}
+          </p>
+          <EurEquivalent amount={ledger.confirmedBalance} currency={ledger.currency} className="text-xs" />
+        </div>
       </Card>
     </Link>
   );
