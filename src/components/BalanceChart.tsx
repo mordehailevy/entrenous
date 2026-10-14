@@ -27,7 +27,11 @@ export function BalanceChart({ data, currency, theyOweYouLabel, youOweThemLabel 
 
   const current = points[points.length - 1];
   const peak = Math.max(...points.map((p) => p.remaining));
-  const progress = peak > 0 ? Math.min(100, Math.round((repaid / (repaid + current.remaining)) * 100)) : 0;
+  const total = repaid + current.remaining;
+  const progress = peak > 0 && total > 0 ? Math.min(100, Math.round((repaid / total) * 100)) : 0;
+  const remainingPct = total > 0 ? 100 - progress : 0;
+  const first = points[0].time;
+  const ticks = Array.from({ length: 4 }, (_, i) => first + ((current.time - first) * i) / 3);
   const color = current.balance < 0 ? '#DC2626' : '#16A34A';
 
   return (
@@ -35,7 +39,14 @@ export function BalanceChart({ data, currency, theyOweYouLabel, youOweThemLabel 
       <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
         <div>
           <p className="text-xs text-gray-500">Reste à rembourser</p>
-          <p className="text-2xl font-semibold text-ink">{formatAmount(current.remaining, currency)}</p>
+          <p className="text-2xl font-semibold text-ink">
+            {formatAmount(current.remaining, currency)}
+            {total > 0 && (
+              <span className="ml-2 text-base font-medium" style={{ color }}>
+                {remainingPct} %
+              </span>
+            )}
+          </p>
         </div>
         <div className="text-right">
           <p className="text-xs text-gray-500">Déjà remboursé</p>
@@ -45,6 +56,19 @@ export function BalanceChart({ data, currency, theyOweYouLabel, youOweThemLabel 
           </p>
         </div>
       </div>
+
+      {total > 0 && (
+        <div
+          className="mb-4 h-2 w-full overflow-hidden rounded-full bg-gray-100"
+          role="progressbar"
+          aria-valuenow={remainingPct}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-label={`Il reste ${remainingPct} % à rembourser`}
+        >
+          <div className="h-full rounded-full" style={{ width: `${remainingPct}%`, backgroundColor: color }} />
+        </div>
+      )}
 
       <div className="h-56 w-full">
         <ResponsiveContainer width="100%" height="100%">
@@ -61,7 +85,10 @@ export function BalanceChart({ data, currency, theyOweYouLabel, youOweThemLabel 
               type="number"
               scale="time"
               domain={['dataMin', 'dataMax']}
-              tickFormatter={(v) => formatDate(new Date(v).toISOString())}
+              ticks={ticks}
+              tickFormatter={(v) =>
+                new Date(v).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
+              }
               tick={{ fontSize: 11, fill: '#9ca3af' }}
               axisLine={false}
               tickLine={false}
@@ -69,8 +96,8 @@ export function BalanceChart({ data, currency, theyOweYouLabel, youOweThemLabel 
             />
             <YAxis
               domain={[0, 'auto']}
-              width={56}
-              tickFormatter={(v) => formatAmount(Number(v), currency)}
+              width={48}
+              tickFormatter={(v) => Number(v).toLocaleString('fr-FR', { notation: 'compact' })}
               tick={{ fontSize: 11, fill: '#9ca3af' }}
               axisLine={false}
               tickLine={false}
