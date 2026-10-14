@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useId, useMemo } from 'react';
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import type { Currency } from '../types';
 import type { BalancePoint, DebtPoint } from '../utils/balance';
@@ -14,6 +14,7 @@ interface BalanceChartProps {
 }
 
 export function BalanceChart({ data, currency, theyOweYouLabel, youOweThemLabel }: BalanceChartProps) {
+  const gradientId = `debtGradient-${useId().replace(/:/g, '')}`;
   const points = useMemo(() => computeDebtHistory(data), [data]);
   const repaid = useMemo(() => computeRepaidTotal(points), [points]);
 
@@ -74,7 +75,7 @@ export function BalanceChart({ data, currency, theyOweYouLabel, youOweThemLabel 
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={points} margin={{ top: 8, right: 24, left: 0, bottom: 0 }}>
             <defs>
-              <linearGradient id="debtGradient" x1="0" y1="0" x2="0" y2="1">
+              <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stopColor={color} stopOpacity={0.3} />
                 <stop offset="100%" stopColor={color} stopOpacity={0.02} />
               </linearGradient>
@@ -116,7 +117,7 @@ export function BalanceChart({ data, currency, theyOweYouLabel, youOweThemLabel 
               dataKey="remaining"
               stroke={color}
               strokeWidth={2}
-              fill="url(#debtGradient)"
+              fill={`url(#${gradientId})`}
             />
           </AreaChart>
         </ResponsiveContainer>

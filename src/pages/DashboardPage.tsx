@@ -3,13 +3,20 @@ import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/useAuth';
 import type { Currency, Ledger, Transaction } from '../types';
-import { computeGuestBalance, computeOwnerBalance } from '../utils/balance';
+import type { BalancePoint } from '../utils/balance';
+import {
+  computeBalanceHistory,
+  computeGuestBalance,
+  computeOwnerBalance,
+  computeTotalDebtHistory,
+} from '../utils/balance';
 import { formatAmount } from '../utils/format';
 import { Header } from '../components/Header';
 import { Card } from '../components/Card';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { NewLedgerModal } from '../components/NewLedgerModal';
+import { BalanceChart } from '../components/BalanceChart';
 import { normalizeForSearch } from '../utils/search';
 
 interface LedgerWithBalance extends Ledger {
@@ -18,6 +25,8 @@ interface LedgerWithBalance extends Ledger {
   // true si l'utilisateur courant est le counterparty (compte associé depuis
   // un lien de partage) plutôt que le propriétaire de ce ledger.
   viewerIsCounterparty: boolean;
+  // Historique du solde validé, du point de vue du viewer (positif = on lui doit).
+  history: BalancePoint[];
 }
 
 export function DashboardPage() {
@@ -60,14 +69,17 @@ export function DashboardPage() {
 
     const withBalances = rows.map((ledger) => {
       const viewerIsCounterparty = ledger.owner_id !== user?.id && ledger.counterparty_id === user?.id;
-      const balance = viewerIsCounterparty
-        ? computeGuestBalance(txByLedger.get(ledger.id) ?? [])
-        : computeOwnerBalance(txByLedger.get(ledger.id) ?? []);
+      const transactions = txByLedger.get(ledger.id) ?? [];
+      const balance = viewerIsCounterparty ? computeGuestBalance(transactions) : computeOwnerBalance(transactions);
+      const ownerHistory = computeBalanceHistory(transactions);
       return {
         ...ledger,
         confirmedBalance: balance.confirmedBalance,
         pendingBalance: balance.pendingBalance,
         viewerIsCounterparty,
+        history: viewerIsCounterparty
+          ? ownerHistory.map((point) => ({ ...point, balance: -point.balance }))
+          : ownerHistory,
       };
     });
 
@@ -118,6 +130,16 @@ export function DashboardPage() {
   }
   const currencyTotals = [...totalsByCurrency.entries()];
 
+  // Courbe du total de mes dettes, une par devise (même périmètre que les totaux ci-dessus).
+  const debtCurves = [...new Set(sharedLedgers.map((l) => l.currency))]
+    .map((currency) => ({
+      currency,
+      history: computeTotalDebtHistory(
+        sharedLedgers.filter((l) => l.currency === currency).map((l) => l.history),
+      ),
+    }))
+    .filter(({ history }) => history.some((point) => point.balance < 0));
+
   return (
     <div className="min-h-svh">
       <Header />
@@ -148,6 +170,21 @@ export function DashboardPage() {
             )}
           </Card>
         </div>
+
+        {!loading &&
+          debtCurves.map(({ currency, history }) => (
+            <Card key={currency} className="mb-6">
+              <h2 className="mb-3 text-sm font-semibold text-ink">
+                Évolution de mes dettes{debtCurves.length > 1 ? ` (${currency === 'ILS' ? '₪' : '€'})` : ''}
+              </h2>
+              <BalanceChart
+                data={history}
+                currency={currency}
+                theyOweYouLabel="On vous doit"
+                youOweThemLabel="Vous devez au total"
+              />
+            </Card>
+          ))}
 
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-bold text-ink">Mes comptes</h2>

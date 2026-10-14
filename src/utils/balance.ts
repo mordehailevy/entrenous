@@ -99,3 +99,23 @@ export function computeRepaidTotal(points: DebtPoint[]): number {
   }
   return repaid;
 }
+
+/**
+ * Total de ce que le viewer doit, tous comptes confondus, au fil du temps.
+ * On additionne seulement les comptes où il est débiteur (solde négatif) :
+ * un remboursement reçu sur un autre compte ne doit pas faire bouger la courbe.
+ * Résultat en convention signée (négatif = je dois) pour réutiliser BalanceChart.
+ */
+export function computeTotalDebtHistory(histories: BalancePoint[][]): BalancePoint[] {
+  const events = histories
+    .flatMap((history, ledgerIndex) => history.map((point) => ({ ...point, ledgerIndex })))
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+  const current = new Map<number, number>();
+  return events.map((event) => {
+    current.set(event.ledgerIndex, event.balance);
+    let owing = 0;
+    for (const balance of current.values()) if (balance < 0) owing += -balance;
+    return { date: event.date, balance: -owing };
+  });
+}
