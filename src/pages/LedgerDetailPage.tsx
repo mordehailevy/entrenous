@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/useAuth';
 import type { Direction, Ledger, Transaction, TransactionKind } from '../types';
-import { computeBalanceHistory, computeGuestBalance, computeOwnerBalance } from '../utils/balance';
+import { computeBalanceHistory, computeGuestBalance, computeOwnerBalance, isLedgerSettled } from '../utils/balance';
 import { removeProofFile, uploadProof, validateProofFile } from '../utils/proof';
 import { exportTransactionsToCsv } from '../utils/csvExport';
 import { exportTransactionsToPdf } from '../utils/pdfExport';
@@ -16,6 +16,7 @@ import { ShareLinkButton } from '../components/ShareLinkButton';
 import { TransactionForm } from '../components/TransactionForm';
 import { TransactionList } from '../components/TransactionList';
 import { BalanceChart } from '../components/BalanceChart';
+import { SettledLedgerCard } from '../components/SettledLedgerCard';
 import { EditableLedgerName } from '../components/EditableLedgerName';
 import { ExportMenu } from '../components/ExportMenu';
 
@@ -234,6 +235,17 @@ export function LedgerDetailPage() {
     navigate('/');
   }
 
+  // Dette soldée : le propriétaire passe par la suppression classique, le
+  // counterparty par le RPC qui revérifie côté serveur que le solde est à 0.
+  async function handleDeleteSettledLedger() {
+    if (!ledger) return;
+    const { error } = isCounterparty
+      ? await supabase.rpc('delete_settled_ledger', { p_token: ledger.share_token })
+      : await supabase.from('ledgers').delete().eq('id', ledger.id);
+    if (error) throw new Error(error.message);
+    navigate('/');
+  }
+
   if (loading) {
     return (
       <div className="min-h-svh">
@@ -317,6 +329,10 @@ export function LedgerDetailPage() {
             youOweThemLabel={youOweThemLabel}
           />
         </Card>
+
+        {!ledger.is_private && isLedgerSettled(transactions, confirmedBalance) && (
+          <SettledLedgerCard onDelete={handleDeleteSettledLedger} />
+        )}
 
         <Card className="mb-4">
           <h2 className="mb-3 text-sm font-semibold text-ink">Évolution de la dette</h2>

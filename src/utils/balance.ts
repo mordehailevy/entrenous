@@ -119,3 +119,15 @@ export function computeTotalDebtHistory(histories: BalancePoint[][]): BalancePoi
     return { date: event.date, balance: -owing };
   });
 }
+
+/** Compte soldé : au moins une transaction validée, rien en attente, solde à 0. */
+export function isLedgerSettled(
+  transactions: Transaction[],
+  confirmedBalance: number,
+): boolean {
+  return (
+    transactions.some((tx) => tx.status === 'confirmed') &&
+    !transactions.some((tx) => tx.status === 'pending') &&
+    Math.abs(confirmedBalance) < 0.005
+  );
+}

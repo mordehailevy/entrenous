@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/useAuth';
 import type { Direction, Ledger, Transaction, TransactionKind } from '../types';
-import { computeBalanceHistory, computeGuestBalance } from '../utils/balance';
+import { computeBalanceHistory, computeGuestBalance, isLedgerSettled } from '../utils/balance';
 import { removeProofFile, uploadProof, validateProofFile } from '../utils/proof';
 import { exportTransactionsToCsv } from '../utils/csvExport';
 import { exportTransactionsToPdf } from '../utils/pdfExport';
@@ -13,6 +13,7 @@ import { Button } from '../components/Button';
 import { Input, Label } from '../components/Input';
 import { BalanceDisplay } from '../components/BalanceDisplay';
 import { BalanceChart } from '../components/BalanceChart';
+import { SettledLedgerCard } from '../components/SettledLedgerCard';
 import { TransactionForm } from '../components/TransactionForm';
 import { TransactionList } from '../components/TransactionList';
 import { ExportMenu } from '../components/ExportMenu';
@@ -31,6 +32,7 @@ export function GuestLedgerPage() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [deleted, setDeleted] = useState(false);
 
   // Petit message de succès temporaire (ex: "Transaction confirmée."), affiché
   // après une action réussie et effacé automatiquement après quelques secondes.
@@ -339,6 +341,22 @@ export function GuestLedgerPage() {
     );
   }
 
+  if (deleted) {
+    return (
+      <div className="min-h-svh">
+        <main className="mx-auto max-w-md px-4 py-12">
+          <Card className="text-center">
+            <h1 className="gradient-text text-xl font-extrabold">EntreNous</h1>
+            <p className="mt-3 font-semibold text-ink">Dette supprimée</p>
+            <p className="mt-1 text-sm text-gray-500">
+              Le compte avec {ledger.owner_display_name} était soldé et a été supprimé pour vous deux.
+            </p>
+          </Card>
+        </main>
+      </div>
+    );
+  }
+
   if (!guestName) return null; // toujours vrai ici (cf. les deux early-returns ci-dessus) ; satisfait le narrowing TS
 
   const { confirmedBalance, pendingBalance } = computeGuestBalance(transactions);
@@ -391,6 +409,17 @@ export function GuestLedgerPage() {
             youOweThemLabel={youOweThemLabel}
           />
         </Card>
+
+        {isLedgerSettled(transactions, confirmedBalance) && (
+          <SettledLedgerCard
+            onDelete={async () => {
+              const { error } = await supabase.rpc('delete_settled_ledger', { p_token: token });
+              if (error) throw new Error(error.message);
+              localStorage.removeItem(guestNameKey);
+              setDeleted(true);
+            }}
+          />
+        )}
 
         <Card className="mb-4">
           <h2 className="mb-3 text-sm font-semibold text-ink">Évolution de la dette</h2>
