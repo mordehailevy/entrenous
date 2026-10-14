@@ -55,3 +55,47 @@ export function computeBalanceHistory(transactions: Transaction[]): BalancePoint
     };
   });
 }
+
+export interface DebtPoint {
+  /** Timestamp (ms) : l'axe X est une vraie échelle de temps. */
+  time: number;
+  /** Solde signé du point de vue du viewer (positif = on lui doit). */
+  balance: number;
+  /** Montant restant dû, quel que soit le sens : c'est la courbe affichée. */
+  remaining: number;
+}
+
+/**
+ * Courbe du « reste à rembourser » : part de 0, monte quand une dette est
+ * contractée et descend à chaque remboursement. Un point final à aujourd'hui
+ * prolonge le palier actuel pour que la courbe reflète l'état réel.
+ */
+export function computeDebtHistory(history: BalancePoint[], now = Date.now()): DebtPoint[] {
+  if (history.length === 0) return [];
+  const toPoint = (time: number, balance: number): DebtPoint => ({
+    time,
+    balance,
+    remaining: Math.abs(balance),
+  });
+  const points = [toPoint(new Date(history[0].date).getTime(), 0)];
+  for (const p of history) points.push(toPoint(new Date(p.date).getTime(), p.balance));
+  const last = points[points.length - 1];
+  if (now > last.time) points.push(toPoint(now, last.balance));
+  return points;
+}
+
+/** Total déjà remboursé : somme de toutes les baisses du reste dû. */
+export function computeRepaidTotal(points: DebtPoint[]): number {
+  let repaid = 0;
+  for (let i = 1; i < points.length; i++) {
+    const prev = points[i - 1];
+    const cur = points[i];
+    // Un changement de sens (je devais → on me doit) rembourse d'abord toute l'ancienne dette.
+    if (Math.sign(prev.balance) !== Math.sign(cur.balance) && prev.balance !== 0) {
+      repaid += prev.remaining;
+    } else if (cur.remaining < prev.remaining) {
+      repaid += prev.remaining - cur.remaining;
+    }
+  }
+  return repaid;
+}

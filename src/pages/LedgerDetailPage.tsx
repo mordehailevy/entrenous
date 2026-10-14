@@ -268,6 +268,16 @@ export function LedgerDetailPage() {
   // ownerLabel/counterpartyLabel reflètent toujours les vrais noms stockés
   // sur le ledger, indépendamment de qui regarde.
   const ownerLabel = ledger.owner_display_name || profile?.display_name || 'Vous';
+  const theyOweYouLabel = isCounterparty
+    ? `${ledger.owner_display_name} vous doit`
+    : ledger.is_private
+      ? 'On vous doit'
+      : `${ledger.counterparty_name} vous doit`;
+  const youOweThemLabel = isCounterparty
+    ? `Vous devez à ${ledger.owner_display_name}`
+    : ledger.is_private
+      ? 'Vous devez'
+      : `Vous devez à ${ledger.counterparty_name}`;
 
   return (
     <div className="min-h-svh">
@@ -303,29 +313,20 @@ export function LedgerDetailPage() {
             confirmedBalance={confirmedBalance}
             pendingBalance={pendingBalance}
             currency={ledger.currency}
-            theyOweYouLabel={
-              isCounterparty
-                ? `${ledger.owner_display_name} vous doit`
-                : ledger.is_private
-                  ? 'On vous doit'
-                  : `${ledger.counterparty_name} vous doit`
-            }
-            youOweThemLabel={
-              isCounterparty
-                ? `Vous devez à ${ledger.owner_display_name}`
-                : ledger.is_private
-                  ? 'Vous devez'
-                  : `Vous devez à ${ledger.counterparty_name}`
-            }
+            theyOweYouLabel={theyOweYouLabel}
+            youOweThemLabel={youOweThemLabel}
           />
         </Card>
 
-        {!ledger.is_private && (
-          <Card className="mb-4">
-            <h2 className="mb-3 text-sm font-semibold text-ink">Évolution du solde</h2>
-            <BalanceChart data={history} currency={ledger.currency} />
-          </Card>
-        )}
+        <Card className="mb-4">
+          <h2 className="mb-3 text-sm font-semibold text-ink">Évolution de la dette</h2>
+          <BalanceChart
+            data={history}
+            currency={ledger.currency}
+            theyOweYouLabel={theyOweYouLabel}
+            youOweThemLabel={youOweThemLabel}
+          />
+        </Card>
 
         <Card className="mb-4" ref={formRef}>
           {showForm ? (
