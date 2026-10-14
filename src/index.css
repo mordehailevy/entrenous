@@ -41,3 +41,8 @@ body {
   background-clip: text;
   color: transparent;
 }
+
+/* Le graphique reste focusable au clavier, mais sans cadre au clic/tap. */
+.recharts-wrapper :focus:not(:focus-visible) {
+  outline: none;
+}

@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/useAuth';
 import type { Direction, Ledger, Transaction, TransactionKind } from '../types';
-import { computeGuestBalance } from '../utils/balance';
+import { computeBalanceHistory, computeGuestBalance } from '../utils/balance';
 import { removeProofFile, uploadProof, validateProofFile } from '../utils/proof';
 import { exportTransactionsToCsv } from '../utils/csvExport';
 import { exportTransactionsToPdf } from '../utils/pdfExport';
@@ -12,6 +12,7 @@ import { Card } from '../components/Card';
 import { Button } from '../components/Button';
 import { Input, Label } from '../components/Input';
 import { BalanceDisplay } from '../components/BalanceDisplay';
+import { BalanceChart } from '../components/BalanceChart';
 import { TransactionForm } from '../components/TransactionForm';
 import { TransactionList } from '../components/TransactionList';
 import { ExportMenu } from '../components/ExportMenu';
@@ -341,6 +342,10 @@ export function GuestLedgerPage() {
   if (!guestName) return null; // toujours vrai ici (cf. les deux early-returns ci-dessus) ; satisfait le narrowing TS
 
   const { confirmedBalance, pendingBalance } = computeGuestBalance(transactions);
+  // Historique vu par l'invité : signe inversé par rapport à l'owner.
+  const history = computeBalanceHistory(transactions).map((point) => ({ ...point, balance: -point.balance }));
+  const theyOweYouLabel = `${ledger.owner_display_name} vous doit`;
+  const youOweThemLabel = `Vous devez à ${ledger.owner_display_name}`;
 
   return (
     <div className="min-h-svh">
@@ -382,8 +387,18 @@ export function GuestLedgerPage() {
             confirmedBalance={confirmedBalance}
             pendingBalance={pendingBalance}
             currency={ledger.currency}
-            theyOweYouLabel={`${ledger.owner_display_name} vous doit`}
-            youOweThemLabel={`Vous devez à ${ledger.owner_display_name}`}
+            theyOweYouLabel={theyOweYouLabel}
+            youOweThemLabel={youOweThemLabel}
+          />
+        </Card>
+
+        <Card className="mb-4">
+          <h2 className="mb-3 text-sm font-semibold text-ink">Évolution de la dette</h2>
+          <BalanceChart
+            data={history}
+            currency={ledger.currency}
+            theyOweYouLabel={theyOweYouLabel}
+            youOweThemLabel={youOweThemLabel}
           />
         </Card>
 
